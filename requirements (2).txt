@@ -1,74 +1,8 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import tensorflow as tf
-import pickle
-import plotly.express as px
-import os
-
-st.set_page_config(page_title="NIDS AI", page_icon="🛡️", layout="wide")
-
-# Cek apakah file ada sebelum load
-REQUIRED_FILES = ['proposed_model.h5', 'scaler.pkl', 'encoders.pkl']
-missing = [f for f in REQUIRED_FILES if not os.path.exists(f)]
-
-if missing:
-    st.error(f"❌ File hilang di server: {missing}")
-    st.info("Hubungi developer untuk upload ulang file model.")
-    st.stop()
-
-@st.cache_resource
-def load_assets():
-    try:
-        model = tf.keras.models.load_model('proposed_model.h5')
-        with open('scaler.pkl', 'rb') as f: scaler = pickle.load(f)
-        with open('encoders.pkl', 'rb') as f: encoders = pickle.load(f)
-        return model, scaler, encoders
-    except Exception as e:
-        st.error(f"Error load model: {str(e)}")
-        st.stop()
-
-model, scaler, encoders = load_assets()
-
-st.title("🛡️ Network Intrusion Detection System")
-st.markdown("**Hybrid 1D-CNN + LSTM + Attention Mechanism**")
-st.success("✅ Sistem siap mendeteksi anomali!")
-
-tab1, tab2 = st.tabs(["📤 Deteksi", "️ Info"])
-
-with tab1:
-    uploaded_file = st.file_uploader("Upload CSV (NSL-KDD Format)", type=['csv'])
-    if uploaded_file:
-        df = pd.read_csv(uploaded_file)
-        st.write(f"Data dimuat: {len(df)} baris")
-        
-        if st.button("Analisis Sekarang"):
-            # Preprocessing sederhana
-            df_p = df.copy()
-            for col in [1, 2, 3]:
-                if col in df_p.columns:
-                    df_p[col] = encoders[col].transform(df_p[col].astype(str))
-            
-            # Drop label cols
-            drop_cols = [c for c in [41, 42, 43] if c in df_p.columns]
-            if drop_cols: df_p = df_p.drop(columns=drop_cols)
-            
-            X = scaler.transform(df_p.values.astype(float)).reshape(-1, df_p.shape[1], 1)
-            pred = model.predict(X).flatten()
-            
-            df['Status'] = ['🔴 ANOMALI' if p > 0.5 else '🟢 NORMAL' for p in pred]
-            df['Confidence'] = [max(p, 1-p) for p in pred]
-            
-            c1, c2 = st.columns(2)
-            c1.metric("Normal", (df['Status']=='🟢 NORMAL').sum())
-            c2.metric("Anomali", (df['Status']=='🔴 ANOMALI').sum())
-            
-            st.dataframe(df[['Status', 'Confidence']].head(20))
-
-with tab2:
-    st.markdown("""
-    ### Tentang Penelitian
-    - **Metode**: Hybrid 1D-CNN + LSTM + Attention
-    - **Dataset**: NSL-KDD
-    - **Tujuan**: Mendeteksi serangan jaringan secara otomatis
-    """)
+tensorflow==2.16.1
+streamlit==1.37.0
+pandas==2.2.2
+numpy==1.26.4
+plotly==5.22.0
+scikit-learn==1.5.1
+protobuf==4.25.3
+h5py==3.11.0
